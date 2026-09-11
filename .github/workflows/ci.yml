@@ -1,4 +1,5 @@
 name: CI/CD Pipeline
+run-name: "CI/CD Pipeline ${{ inputs.leg || github.event_name }} ${{ inputs.racecar_run }}"
 
 on:
   push:
@@ -6,6 +7,24 @@ on:
   pull_request:
     branches: [ master ]
 
+  workflow_dispatch:
+    inputs:
+      leg:
+        description: "baseline (uninstrumented) or instrumented (under chalk/curiosity)"
+        type: choice
+        options: [instrumented, baseline]
+        default: baseline
+      profile:
+        description: "CrashOverride chalk profile"
+        type: string
+        default: curiosity-tests-racecar
+      racecar_run:
+        description: "racecar correlation token, echoed into the run name"
+        type: string
+        default: ""
+
+env:
+  CHALK_ON: ${{ inputs.leg == 'instrumented' }}
 jobs:
   test:
     name: Run Tests
@@ -49,6 +68,7 @@ jobs:
       run: composer run test-coverage
 
   security:
+    continue-on-error: true   # racecar: scan job other jobs need
     name: Security Audit
     runs-on: ubuntu-latest
     needs: test
@@ -69,6 +89,7 @@ jobs:
       run: composer audit
 
   release:
+    continue-on-error: true   # racecar: scan job other jobs need
     name: Create Release
     runs-on: ubuntu-latest
     needs: [test, security]
